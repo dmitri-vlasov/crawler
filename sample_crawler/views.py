@@ -88,7 +88,10 @@ def get_nested_links(request) -> JsonResponse:
 
             # crawl nested links on background
             links_limit = settings.LINKS_LIMIT or len(links)
-            crawl_to_redis.delay(links[:links_limit], depth=2)
+
+            # set depth to one before limit to prefetch
+            # and show to user only one level
+            crawl_to_redis.delay(links[:links_limit], depth=settings.CRAWL_DEPTH - 1)
 
         except requests.RequestException as ex:
             error_msg = f'An error occurred while accessing a page {url}: {ex}'
