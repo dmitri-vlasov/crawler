@@ -1,4 +1,4 @@
-from sample_crawler.crawler import extract_links_data, get_html_for_url
+from sample_crawler.crawler import retrieve_links_from_urls
 
 
 class TestCrawler:
@@ -8,11 +8,7 @@ class TestCrawler:
 
     test_url = 'https://httpbin.org'
 
-    def test_get_html_for_url(self):
-        html_page = get_html_for_url(TestCrawler.test_url)
-        assert html_page.lower().startswith('<!doctype html>')
-
-    def test_extract_links_data(self):
-        html_page = get_html_for_url(TestCrawler.test_url)
-        links = extract_links_data(html_page, TestCrawler.test_url)
+    def test_retrieve_links_from_urls(self):
+        links_data = retrieve_links_from_urls([TestCrawler.test_url])
+        links = links_data[TestCrawler.test_url]
         assert len(links) > 0 and not all(link.startswith('http') for link in links)

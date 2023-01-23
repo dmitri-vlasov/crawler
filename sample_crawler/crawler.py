@@ -1,27 +1,47 @@
+import asyncio
+import logging
 from urllib.parse import urlparse
 
+import aiohttp
 import requests
 from django.conf import settings
 from lxml.html import fromstring
 from lxml.etree import Error as LxmlError
 
+logger = logging.getLogger('django')
 
-def get_html_for_url(url: str) -> str:
-    """
-    Requests the given url and returns its HTML.
-    :param url: url to request
-    :return: HTML as a string
-    """
-    with requests.Session() as session:
 
-        response = session.get(
-            url, headers=settings.CRAWLER_HEADERS, timeout=settings.REQUEST_TIMEOUT
+async def retrieve_links_from_url(
+    url: str, session: aiohttp.ClientSession
+) -> tuple[str, list]:
+    try:
+        async with session.get(url, headers=settings.CRAWLER_HEADERS) as response:
+            return url, extract_links_data(await response.text(), url)
+
+    except Exception as ex:
+        logger.error(f'An error occurred while accessing a page {url}: {ex}')
+        return url, []
+
+
+async def retrieve_links_from_urls(urls: list[str]) -> dict[str, str]:
+    """
+    Returns a dict with urls as keys and
+    links parsed from them as values.
+    :param urls: url to request
+    :return:
+    """
+    timeout = aiohttp.ClientTimeout(total=settings.REQUEST_TIMEOUT)
+
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        print(urls)
+        links_data = await asyncio.gather(
+            *[retrieve_links_from_url(url, session) for url in urls],
+            return_exceptions=True,
         )
-        response.raise_for_status()
-        return response.text
+        return {url: links for url, links in links_data}
 
 
-def extract_links_data(html_page: str, url: str) -> list:
+def extract_links_data(html_page: str, url: str) -> list | list[str]:
     """
     Extracts links from HTML. Related links converted to absolute.
     :param html_page:
@@ -41,6 +61,7 @@ def extract_links_data(html_page: str, url: str) -> list:
             # fix relative urls
             link_url = requests.compat.urljoin(root_url, a_element.xpath('@href')[0])
             links_data.append(link_url)
+
     except LxmlError:
         links_data = []
 

@@ -1,6 +1,6 @@
+import asyncio
 import logging
 import pickle
-from urllib.parse import urlparse
 
 import redis
 import requests
@@ -8,8 +8,9 @@ from django.conf import settings
 from django.http import HttpResponse, JsonResponse
 from django.views.generic import TemplateView
 
-from sample_crawler.celery import crawl_to_redis
-from sample_crawler.crawler import extract_links_data, get_html_for_url
+from sample_crawler.crawler import retrieve_links_from_urls
+from sample_crawler.tasks import crawl_to_redis
+from sample_crawler.utils import is_valid_url
 
 logger = logging.getLogger('django')
 redis_client = redis.Redis()
@@ -26,35 +27,34 @@ class CrawlerView(TemplateView):
         """
         url = request.POST.get('url')
         context = {'submitted_url': url}
-        links_cached = redis_client.get(url)
 
-        url_components = urlparse(url)
-        if not url_components.scheme or not url_components.netloc:
+        if not is_valid_url(url):
             context['error'] = 'Oh, boy! URL is not valid'
+
+        links_pickled = redis_client.get(url)
+
+        if links_pickled:
+            context['links'] = pickle.loads(links_pickled)
             return self.render_to_response(context)
 
-        if links_cached:
-            context['links'] = pickle.loads(links_cached)
+        try:
+            links_data = asyncio.run(retrieve_links_from_urls([url]))
+            # we always have one url here
+            context['links'] = links_data[url]
+            redis_client.set(
+                url,
+                pickle.dumps(context['links']),
+                ex=settings.CRAWL_RESULTS_EXPIRATION_SECONDS,
+            )
 
-        else:
-            try:
-                html_page = get_html_for_url(url)
-                context['links'] = extract_links_data(html_page, url)
-                redis_client.set(
-                    url,
-                    pickle.dumps(context['links']),
-                    ex=settings.CRAWL_RESULTS_EXPIRATION_SECONDS,
-                )
+            # crawl nested links on background
+            links_limit = settings.LINKS_LIMIT or len(context['links'])
+            crawl_to_redis.delay(context['links'][:links_limit], 1)
 
-                # crawl nested links on background
-                slice_to = settings.LINKS_LIMIT or len(context['links'])
-                for link in context['links'][:slice_to]:
-                    crawl_to_redis.delay(link, 1)
-
-            except requests.RequestException as ex:
-                error_msg = f'An error occurred while accessing a page {url}: {ex}'
-                logger.error(error_msg)
-                context['error'] = error_msg
+        except requests.RequestException as ex:
+            error_msg = f'An error occurred while accessing a page {url}: {ex}'
+            logger.error(error_msg)
+            context['error'] = error_msg
 
         return self.render_to_response(context)
 
@@ -67,18 +67,32 @@ def get_nested_links(request) -> JsonResponse:
     :return: JsonResponse
     """
     url = request.POST.get('url')
-    links_pkl = redis_client.get(url)
 
-    if links_pkl:
-        data = pickle.loads(links_pkl)
+    if not is_valid_url(url):
+        return JsonResponse([], safe=False)
+
+    links_pickled = redis_client.get(url)
+
+    if links_pickled:
+        links = pickle.loads(links_pickled)
     else:
         try:
-            html_page = get_html_for_url(url)
-            data = extract_links_data(html_page, url)
+            links_data = asyncio.run(retrieve_links_from_urls([url]))
+            # we always have one url here
+            links = links_data[url]
+            redis_client.set(
+                url,
+                pickle.dumps(links),
+                ex=settings.CRAWL_RESULTS_EXPIRATION_SECONDS,
+            )
+
+            # crawl nested links on background
+            links_limit = settings.LINKS_LIMIT or len(links)
+            crawl_to_redis.delay(links[:links_limit], depth=2)
 
         except requests.RequestException as ex:
             error_msg = f'An error occurred while accessing a page {url}: {ex}'
             logger.error(error_msg)
-            data = []
+            links = []
 
-    return JsonResponse(data, safe=False)
+    return JsonResponse(links, safe=False)
