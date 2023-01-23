@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css"
+          integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <script
+            src="https://code.jquery.com/jquery-3.6.3.min.js"
+            integrity="sha256-pvPw+upLPUjgMXY0G+8O0xUf+/Im1MZjXxxgOcBQBXU="
+            crossorigin="anonymous"></script>
+
+    <title>Sample Crawler</title>
+</head>
+<body>
+<div class="jumbotron jumbotron-fluid">
+    <div class="container">
+        <h1 {% if not links %}style="margin-top: 200px;"{% endif %}>Sample Crawler</h1>
+        <form method="post">
+            <div class="input-group mb-3">
+                {% csrf_token %}
+                <input type="text" class="form-control {% if error %}is-invalid{% endif %}" placeholder="Your URL to crawl" aria-label="Your URL to crawl"
+                       aria-describedby="basic-addon2" name="url"
+                       value="{% if submitted_url %}{{ submitted_url }}{% else %}https://en.wikipedia.org/wiki/Django_(web_framework){% endif %}">
+                <div class="input-group-append">
+                    <button class="btn btn-outline-secondary" type="submit">Go</button>
+                </div>
+                {% if error %}
+                    <div class="invalid-feedback">
+                      {{ error }}
+                    </div>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+<div class="container">
+    {% if links is not None %}
+        {% if links|length > 0 %}
+        <h2>Links we found:</h2>
+        <ul>
+            {% for link in links %}
+                <li>
+                    <a href="{{ link }}" class="expandable-item">{{ link }}</a>
+                </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+            <h4>Nothing found...</h4>
+        {% endif %}
+    {% endif %}
+</div>
+
+<script type="text/javascript">
+
+    $(document).on('click', '.expandable-item', function (e) {
+        e.preventDefault();
+        let list = $(this).parent();
+
+        if (list.has('ul').length) {
+            if (list.children('ul[style="display: none;"]').length !== 0) {
+                list.children('ul').removeAttr('style', 'display: none;');
+            } else {
+                list.children('ul').attr('style', 'display: none;');
+            }
+
+        } else {
+            // no sub list, let's get it
+
+            $.ajax({
+                type: 'post',
+                url: '/nested_links',
+                data: {
+                    url: $(this).attr('href'),
+                    csrfmiddlewaretoken: '{{ csrf_token }}'
+                },
+                dataType: 'json',
+                success: function (nestedLinks) {
+
+                    let subList = '<ul>';
+                    nestedLinks.forEach(function (link) {
+                        subList += '<li><a href="' + link + '" class="expandable-item">' + link + '</a></li>';
+                    });
+                    subList += '</ul>'
+                    list.append(subList);
+                },
+
+                error: function (xhr, status, errorThrown) {
+                },
+                complete: function (xhr, status) {
+                },
+            });
+        }
+    })
+</script>
+
+</body>
+</html>
+
