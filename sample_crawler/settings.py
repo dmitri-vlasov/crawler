@@ -131,7 +131,7 @@ CRAWLER_HEADERS = {
 CELERY_BROKER = 'redis://localhost:6379/0'
 
 # limit number of links to crawl. 0 means unlimited
-LINKS_LIMIT = 10
+LINKS_LIMIT = 20
 
 CRAWL_DEPTH = 3
 
