@@ -49,7 +49,7 @@ class CrawlerView(TemplateView):
                 # crawl nested links on background
                 slice_to = settings.LINKS_LIMIT or len(context['links'])
                 for link in context['links'][:slice_to]:
-                    crawl_to_redis.delay(link, 1)
+                    crawl_to_redis.delay(link, depth=1)
 
             except requests.RequestException as ex:
                 error_msg = f'An error occurred while accessing a page {url}: {ex}'

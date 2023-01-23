@@ -21,7 +21,7 @@ app.autodiscover_tasks()
 
 
 @app.task
-def crawl_to_redis(url: str, depth: int) -> None:
+def crawl_to_redis(url: str, depth: int = 1) -> None:
     """
     Celery task to crawl specified URL and cache results to Redis.
     :param url: URL to crawl
@@ -36,10 +36,12 @@ def crawl_to_redis(url: str, depth: int) -> None:
             html_page = get_html_for_url(url)
             links = extract_links_data(html_page, url)
 
+            # spawn Celery tasks to crawl links we found
+            # if we haven't reached a desired depth yet
             if depth <= settings.CRAWL_DEPTH:
                 slice_to = settings.LINKS_LIMIT or len(links)
                 for link in links[:slice_to]:
-                    crawl_to_redis.delay(link, depth + 1)
+                    crawl_to_redis.delay(link, depth=depth + 1)
 
         except requests.RequestException as ex:
             logger.error(f'An error occurred while accessing a page {url}: {ex}')
