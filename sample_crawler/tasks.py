@@ -31,6 +31,8 @@ def crawl_to_redis(urls: list[str], depth: int = 1) -> None:
             redis_client.set(
                 url, pickle.dumps(links), ex=settings.CRAWL_RESULTS_EXPIRATION_SECONDS
             )
+            # spawn Celery tasks to crawl links we found
+            # if we haven't reached a desired depth yet
             if depth <= settings.CRAWL_DEPTH:
                 links_limit = settings.LINKS_LIMIT or len(urls)
                 if links[:links_limit]:
