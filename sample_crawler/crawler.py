@@ -12,13 +12,11 @@ def get_html_for_url(url: str) -> str:
     :param url: url to request
     :return: HTML as a string
     """
-    with requests.Session() as session:
-
-        response = session.get(
-            url, headers=settings.CRAWLER_HEADERS, timeout=settings.REQUEST_TIMEOUT
-        )
-        response.raise_for_status()
-        return response.text
+    response = requests.get(
+        url, headers=settings.CRAWLER_HEADERS, timeout=settings.REQUEST_TIMEOUT
+    )
+    response.raise_for_status()
+    return response.text
 
 
 def extract_links_data(html_page: str, url: str) -> list:
