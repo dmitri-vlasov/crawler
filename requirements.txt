@@ -4,4 +4,4 @@ lxml==4.9.2
 celery==5.2.7
 redis==4.4.2
 pytest==7.2.1
-python-dotenv
+python-dotenv==0.21.1
