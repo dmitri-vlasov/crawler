@@ -5,8 +5,8 @@ from urllib.parse import urlparse
 import aiohttp
 import requests
 from django.conf import settings
-from lxml.html import fromstring
 from lxml.etree import Error as LxmlError
+from lxml.html import fromstring
 
 logger = logging.getLogger('django')
 
