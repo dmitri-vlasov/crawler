@@ -12,7 +12,7 @@ from sample_crawler.celery import crawl_to_redis
 from sample_crawler.crawler import extract_links_data, get_html_for_url
 
 logger = logging.getLogger('django')
-redis_client = redis.Redis()
+redis_client = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT)
 
 
 class CrawlerView(TemplateView):

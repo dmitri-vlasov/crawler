@@ -128,6 +128,9 @@ CRAWLER_HEADERS = {
     'user-agent': CRAWLER_USER_AGENT,
 }
 
+REDIS_HOST = 'localhost'
+REDIS_PORT = 6379
+
 CELERY_BROKER = 'redis://localhost:6379/0'
 
 # limit number of links to crawl. 0 means unlimited

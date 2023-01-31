@@ -10,9 +10,11 @@ from django.conf import settings
 from sample_crawler.crawler import extract_links_data, get_html_for_url
 
 logger = logging.getLogger('django')
-redis_client = redis.Redis()
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'sample_crawler.settings')
+
+
+redis_client = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT)
 
 app = Celery('sample_crawler', broker=settings.CELERY_BROKER)
 
